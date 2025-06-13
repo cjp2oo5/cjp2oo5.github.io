@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pomodoro Timer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to bottom right, #f8fafc, #e0f2fe); /* Lightest blue to very light blue */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .frosted-glass {
+      background-color: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(200, 200, 200, 0.3);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+    #timer {
+        border: 4px solid rgba(100, 100, 100, 0.3);
+    }
+    #clock-container {
+        display: flex;
+        align-items: center;
+        gap: 1rem; /* Space between clock and animated icon */
+        margin-bottom: 1.5rem;
+    }
+    #clock {
+        font-size: 2.5rem;
+        font-weight: 600;
+        color: #4f46e5;
+        background-color: rgba(255, 255, 255, 0.5);
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* CSS for the spinning animation */
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .animated-clock.running {
+      animation: spin 2s linear infinite; /* Spin continuously when running */
+    }
+
+    /* Style for session list */
+    .session-item {
+        background-color: rgba(255, 255, 255, 0.9);
+        border-left: 4px solid;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        color: #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .session-item.completed {
+        border-color: #10b981;
+    }
+    .session-item.interrupted {
+        border-color: #ef4444;
+    }
+    .session-status {
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85em;
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+    }
+    .session-status.completed {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    .session-status.interrupted {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+  </style>
+</head>
+<body class="">
+  <h1 class="text-5xl md:text-6xl text-blue-800 font-extrabold mb-10 drop-shadow-md">Pomodoro Timer</h1>
+
+  <!-- Clock Display and Animated Icon Container - Always visible -->
+  <div id="clock-container" class="frosted-glass p-4 rounded-xl shadow-lg">
+    <div id="clock"></div>
+    <!-- Animated Clock Icon -->
+    <div id="animatedClockIcon" class="animated-clock w-10 h-10 text-gray-600">
+        <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hourglass">
+            <path d="M6 2v6a6 6 0 0 0 6 6 6 6 0 0 0 6-6V2"/>
+            <path d="M6 22v-6a6 6 0 0 1 6-6 6 6 0 0 1 6 6v6"/>
+        </svg>
+    </div>
+  </div>
+
+  <div id="timer" class="text-8xl md:text-9xl font-bold text-gray-800 mb-12 frosted-glass p-10 rounded-3xl shadow-2xl tracking-wide select-none">25:00</div>
+  <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6 mb-12">
+    <button onclick="startTimer()"
+            class="w-full sm:w-auto bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white py-4 px-10 rounded-xl font-bold text-xl shadow-xl transition-all duration-300 transform hover:scale-105">
+      Start
+    </button>
+    <button onclick="resetTimer()"
+            class="w-full sm:w-auto bg-gradient-to-r from-red-600 to-pink-700 hover:from-red-700 hover:to-pink-800 text-white py-4 px-10 rounded-xl font-bold text-xl shadow-xl transition-all duration-300 transform hover:scale-105">
+      Reset
+    </button>
+  </div>
+
+  <!-- Custom modal for alerts instead of alert() -->
+  <div id="customAlert" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+    <div class="frosted-glass p-8 rounded-xl shadow-2xl text-center max-w-sm w-full text-gray-800">
+      <p id="alertMessage" class="text-2xl font-semibold mb-6"></p>
+      <button onclick="closeCustomAlert()" class="bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white py-3 px-8 rounded-xl font-bold text-lg shadow-md transition-all duration-300">
+        OK
+      </button>
+    </div>
+  </div>
+
+  <!-- Previous Timing Sessions Section -->
+  <div class="frosted-glass rounded-2xl shadow-xl p-6 mt-8 w-full max-w-xl">
+    <h3 class="text-2xl font-semibold text-gray-800 mb-4">Previous Timing Sessions</h3>
+    <div id="sessionListContent" class="space-y-3">
+      <!-- Session items will be dynamically loaded here -->
+      <p class="text-gray-600" id="noSessionsMessage">No sessions recorded yet.</p>
+    </div>
+  </div>
+
+  <a href="index.html" class="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white py-3 px-8 rounded-xl font-bold text-lg shadow-xl transition-all duration-300 transform hover:scale-105 mt-8">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left-circle"><circle cx="12" cy="12" r="10"/><path d="M12 8L8 12l4 4"/><path d="M16 12H8"/></svg>
+    <span>Back to Menu</span>
+  </a>
+
+  <script>
+    let timer;
+    let clockTimer;
+    let minutes = 25;
+    let seconds = 0;
+    let isRunning = false;
+    let sessionStartTime;
+
+    const clockElement = document.getElementById('clock');
+    const clockContainer = document.getElementById('clock-container');
+    const animatedClockIcon = document.getElementById('animatedClockIcon');
+    const sessionListContent = document.getElementById('sessionListContent');
+    const noSessionsMessage = document.getElementById('noSessionsMessage');
+
+    const previousSessions = [
+      { date: "2025-06-10", duration: "25:00", status: "completed" },
+      { date: "2025-06-11", duration: "10:30", status: "interrupted" },
+      { date: "2025-06-12", duration: "25:00", status: "completed" }
+    ];
+
+    // Function to update and display the current time (clock) in IST
+    function updateClock() {
+      const now = new Date();
+      // Use toLocaleTimeString for accurate IST display
+      clockElement.textContent = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function updateDisplay() {
+      const min = String(minutes).padStart(2, '0');
+      const sec = String(seconds).padStart(2, '0');
+      document.getElementById("timer").textContent = `${min}:${sec}`;
+    }
+
+    function showCustomAlert(message) {
+      document.getElementById("alertMessage").textContent = message;
+      document.getElementById("customAlert").classList.remove("hidden");
+    }
+
+    function closeCustomAlert() {
+      document.getElementById("customAlert").classList.add("hidden");
+    }
+
+    function renderPreviousSessions() {
+      sessionListContent.innerHTML = '';
+      if (previousSessions.length === 0) {
+        sessionListContent.appendChild(noSessionsMessage);
+        return;
+      }
+
+      previousSessions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      previousSessions.forEach(session => {
+        const sessionItem = document.createElement('div');
+        sessionItem.className = `session-item ${session.status}`;
+        const formattedDate = new Date(session.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+        sessionItem.innerHTML = `
+          <span><strong>${formattedDate}</strong> - Duration: ${session.duration}</span>
+          <span class="session-status ${session.status}">${session.status}</span>
+        `;
+        sessionListContent.appendChild(sessionItem);
+      });
+    }
+
+    function startTimer() {
+      if (isRunning) return;
+      isRunning = true;
+      sessionStartTime = new Date();
+
+      timer = setInterval(() => {
+        if (seconds === 0) {
+          if (minutes === 0) {
+            clearInterval(timer);
+            isRunning = false;
+            showCustomAlert("Pomodoro complete!");
+            recordSession("completed");
+            animatedClockIcon.classList.remove('running');
+            return;
+          } else {
+            minutes--;
+            seconds = 59;
+          }
+        } else {
+          seconds--;
+        }
+        updateDisplay();
+      }, 1000);
+
+      animatedClockIcon.classList.add('running');
+    }
+
+    function resetTimer() {
+      if (isRunning) {
+        recordSession("interrupted");
+      }
+      clearInterval(timer);
+      isRunning = false;
+      minutes = 25;
+      seconds = 0;
+      updateDisplay();
+      animatedClockIcon.classList.remove('running');
+    }
+
+    function recordSession(status) {
+      if (!sessionStartTime) return;
+
+      const endTime = new Date();
+      const durationMs = endTime - sessionStartTime;
+      const totalSeconds = Math.floor(durationMs / 1000);
+      const recordedMinutes = Math.floor(totalSeconds / 60);
+      const recordedSeconds = totalSeconds % 60;
+      const recordedDuration = `${String(recordedMinutes).padStart(2, '0')}:${String(recordedSeconds).padStart(2, '0')}`;
+
+      const sessionDate = endTime.toISOString().split('T')[0];
+
+      previousSessions.push({
+        date: sessionDate,
+        duration: recordedDuration,
+        status: status
+      });
+      renderPreviousSessions();
+      sessionStartTime = null;
+    }
+
+    // Initial display updates when the page loads
+    updateDisplay();
+    updateClock();
+    clockTimer = setInterval(updateClock, 1000); // Clock starts immediately and runs continuously
+    renderPreviousSessions();
+  </script>
+</body>
+</html>

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendar - Academic Planner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to bottom right, #f8fafc, #e0f2fe); /* Lightest blue to very light blue */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .frosted-glass {
+      background-color: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(200, 200, 200, 0.3);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+    /* Specific styles for calendar grid */
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0.5rem;
+      border: 2px solid rgba(180, 180, 180, 0.8);
+      border-radius: 12px;
+      padding: 0.5rem;
+    }
+    .calendar-day {
+      padding: 0.75rem;
+      text-align: center;
+      border-radius: 8px;
+      font-weight: 500;
+      color: #333;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.2s ease;
+      position: relative;
+    }
+    .calendar-day:hover:not(.current-month-disabled) {
+      background-color: rgba(255, 255, 255, 0.9);
+      transform: translateY(-2px);
+    }
+    .calendar-day.header {
+      font-weight: 700;
+      color: #4f46e5;
+      background-color: transparent;
+      cursor: default;
+    }
+    .calendar-day.current-month {
+      background-color: rgba(255, 255, 255, 0.8);
+    }
+    .calendar-day.current-day {
+      background-color: #6366f1;
+      color: white;
+      font-weight: 700;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .calendar-day.current-month-disabled {
+        color: #a0a0a0;
+        background-color: rgba(255, 255, 255, 0.4);
+        cursor: default;
+    }
+    .calendar-day.has-event {
+        border: 2px solid #ef4444;
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+    }
+    .calendar-day.has-event::after {
+        content: '';
+        display: block;
+        width: 6px;
+        height: 6px;
+        background-color: #ef4444;
+        border-radius: 50%;
+        position: absolute;
+        bottom: 5px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    /* Event list styling */
+    .event-list-container {
+      margin-top: 2rem;
+      width: 100%;
+      max-width: 600px;
+      text-align: left;
+    }
+    .event-item {
+      background-color: rgba(255, 255, 255, 0.9);
+      border-left: 4px solid #4f46e5; /* Indigo left border */
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      color: #333;
+    }
+    .event-item strong {
+      color: #1e3a8a; /* Darker blue for date */
+    }
+  </style>
+</head>
+<body class="">
+  <h1 class="text-5xl md:text-6xl text-blue-800 font-extrabold mb-10 drop-shadow-md">Academic Calendar</h1>
+
+  <!-- Add New Event Section -->
+  <div class="frosted-glass rounded-2xl shadow-xl p-8 mb-8 w-full max-w-2xl flex flex-col items-center">
+    <h3 class="text-2xl font-semibold text-gray-800 mb-6">Add New Event</h3>
+    <div class="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full">
+      <input type="text" id="eventDescription" placeholder="Event description"
+             class="flex-grow p-3 text-lg border-2 border-gray-300 frosted-glass text-gray-800 placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+      <input type="date" id="eventDate"
+             class="p-3 text-lg border-2 border-gray-300 frosted-glass text-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+      <button onclick="addEvent()"
+              class="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white py-3 px-6 rounded-lg font-bold text-lg shadow-md transition-all duration-300 transform hover:scale-105">
+        Add Event
+      </button>
+    </div>
+  </div>
+
+  <div class="frosted-glass rounded-2xl shadow-xl p-8 mb-12 w-full max-w-2xl">
+    <div class="flex items-center justify-between mb-6">
+      <button id="prevMonth" class="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white p-2 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <h2 id="currentMonthYear" class="text-3xl font-semibold text-gray-800"></h2>
+      <button id="nextMonth" class="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white p-2 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+    </div>
+
+    <div id="calendar" class="calendar-grid">
+      <!-- Calendar days will be generated here by JavaScript -->
+    </div>
+  </div>
+
+  <!-- Event List Display -->
+  <div id="eventList" class="event-list-container frosted-glass p-6 rounded-2xl shadow-xl">
+    <h3 class="text-2xl font-semibold text-gray-800 mb-4">Upcoming Events</h3>
+    <div id="eventsContent" class="space-y-3">
+      <!-- Events will be dynamically loaded here -->
+      <p class="text-gray-600" id="noEventsMessage">No events for this month.</p>
+    </div>
+  </div>
+
+  <a href="index.html" class="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white py-3 px-8 rounded-xl font-bold text-lg shadow-xl transition-all duration-300 transform hover:scale-105 mt-8">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left-circle"><circle cx="12" cy="12" r="10"/><path d="M12 8L8 12l4 4"/><path d="M16 12H8"/></svg>
+    <span>Back to Menu</span>
+  </a>
+
+  <script>
+    const calendarElement = document.getElementById('calendar');
+    const currentMonthYearElement = document.getElementById('currentMonthYear');
+    const prevMonthBtn = document.getElementById('prevMonth');
+    const nextMonthBtn = document.getElementById('nextMonth');
+    const eventListContent = document.getElementById('eventsContent');
+    const noEventsMessage = document.getElementById('noEventsMessage');
+
+    // New elements for adding events
+    const eventDescriptionInput = document.getElementById('eventDescription');
+    const eventDateInput = document.getElementById('eventDate');
+
+    let currentDate = new Date();
+
+    const allEvents = {
+      "2025-06-18": ["Physics Exam", "Submit Math Assignment"],
+      "2025-06-25": ["Project Deadline"],
+      "2025-07-03": ["Biology Lab Report Due"],
+      "2025-07-15": ["Chemistry Midterm"],
+      "2025-08-01": ["Summer Break Begins"],
+      "2025-06-13": ["Academic Planner Meeting"], // Example event for today (June 13, 2025)
+      "2025-06-20": ["English Essay Draft Due"],
+      "2025-07-10": ["Group Project Presentation"]
+    };
+
+    function renderCalendar() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+
+      const firstDayOfMonth = new Date(year, month, 1);
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const firstDayOfWeek = firstDayOfMonth.getDay();
+
+      const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+      calendarElement.innerHTML = '';
+      currentMonthYearElement.textContent = firstDayOfMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      dayNames.forEach(day => {
+        const div = document.createElement('div');
+        div.className = 'calendar-day header';
+        div.textContent = day;
+        calendarElement.appendChild(div);
+      });
+
+      for (let i = 0; i < firstDayOfWeek; i++) {
+        const div = document.createElement('div');
+        div.className = 'calendar-day current-month-disabled';
+        div.textContent = daysInPrevMonth - firstDayOfWeek + 1 + i;
+        calendarElement.appendChild(div);
+      }
+
+      for (let i = 1; i <= daysInMonth; i++) {
+        const div = document.createElement('div');
+        div.className = 'calendar-day current-month';
+        div.textContent = i;
+
+        const dayString = `${year}-${(month + 1).toString().padStart(2, '0')}-${i.toString().padStart(2, '0')}`;
+
+        if (allEvents[dayString]) {
+          div.classList.add('has-event');
+        }
+
+        const today = new Date();
+        if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+          div.classList.add('current-day');
+        }
+        calendarElement.appendChild(div);
+      }
+
+      const totalCells = firstDayOfWeek + daysInMonth;
+      const remainingCells = 42 - totalCells;
+      for (let i = 1; i <= remainingCells; i++) {
+          const div = document.createElement('div');
+          div.className = 'calendar-day current-month-disabled';
+          div.textContent = i;
+          calendarElement.appendChild(div);
+      }
+
+      displayEventsForCurrentMonth();
+    }
+
+    // Function to add a new event
+    function addEvent() {
+      const description = eventDescriptionInput.value.trim();
+      const dateString = eventDateInput.value; //YYYY-MM-DD format
+
+      if (!description || !dateString) {
+        // In a real app, you'd use a custom modal instead of alert
+        alert("Please enter both an event description and a date.");
+        return;
+      }
+
+      // Check if the date string is a valid format
+      const [year, month, day] = dateString.split('-').map(Number);
+      const eventDateObj = new Date(year, month - 1, day); // Month is 0-indexed
+
+      // Basic validation for date correctness
+      if (isNaN(eventDateObj.getTime())) {
+          alert("Invalid date entered. Please use YYYY-MM-DD format.");
+          return;
+      }
+
+      // Add event to the allEvents object
+      if (!allEvents[dateString]) {
+        allEvents[dateString] = [];
+      }
+      allEvents[dateString].push(description);
+
+      // Re-render calendar and event list to show the new event
+      renderCalendar();
+
+      // Clear input fields
+      eventDescriptionInput.value = '';
+      eventDateInput.value = '';
+    }
+
+    function displayEventsForCurrentMonth() {
+      eventListContent.innerHTML = '';
+      let eventsFound = false;
+
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+
+      // Get dates from allEvents that fall within the current month, sorted by day
+      const currentMonthEventDates = Object.keys(allEvents).filter(dateString => {
+        const [eventYear, eventMonth] = dateString.split('-').map(Number);
+        return eventYear === year && (eventMonth - 1) === month;
+      }).sort((a, b) => {
+        // Sort events by day
+        const dayA = parseInt(a.split('-')[2]);
+        const dayB = parseInt(b.split('-')[2]);
+        return dayA - dayB;
+      });
+
+      if (currentMonthEventDates.length > 0) {
+        eventsFound = true;
+        currentMonthEventDates.forEach(dayString => {
+          const eventDate = new Date(dayString); // Date object from YYYY-MM-DD string
+          const formattedDate = eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+          allEvents[dayString].forEach(event => {
+            const eventItem = document.createElement('div');
+            eventItem.className = 'event-item';
+            eventItem.innerHTML = `<strong>${formattedDate}:</strong> ${event}`;
+            eventListContent.appendChild(eventItem);
+          });
+        });
+      }
+
+      if (!eventsFound) {
+        eventListContent.appendChild(noEventsMessage);
+      }
+    }
+
+    prevMonthBtn.addEventListener('click', () => {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      renderCalendar();
+    });
+
+    nextMonthBtn.addEventListener('click', () => {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      renderCalendar();
+    });
+
+    renderCalendar();
+  </script>
+</body>
+</html>
